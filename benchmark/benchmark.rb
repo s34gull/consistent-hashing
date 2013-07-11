@@ -9,8 +9,13 @@ def ip(offset)
   [24, 16, 8, 0].collect {|b| (address >> b) & 255}.join('.')
 end
 
-def rand_client_id()
-  (rand * 1_000_000).to_int
+def rand_emails()
+  fnames = ["Adam", "Benjamin", "Caleb", "Daniel", "Frank", "Gideon"]
+  lnames = ["Smith", "Jones", "Washington", "Jefferson", "Gardener", 
+"Cooper"]
+  domains = ["asdfads", "oioiau", "idius-iosud", "qwieu9", "aodfou", "oiinnus-d"]
+  tlds = ["com", "edu", "org"]
+  fnames[rand(6)] + lnames[rand(6)] + "@" + domains[rand(6)] + "." + tlds[rand(3)]
 end
 
 def benchmark_insertions_lookups()
@@ -28,15 +33,31 @@ def benchmark_insertions_lookups()
   #
   # The performance improvement is ~20x for both insertions and lookups.
 
+  emails = []
+  100_000.times {
+    emails.push(rand_emails)
+  }
+
+  bucket_counts = {}
+
   Benchmark.bm(10) do |x|
-    ring = ConsistentHashing::Ring.new(replicas: 200)
-    x.report("Insertions:") {for i in 1..1_000; ring << ip(i); end}
+    ring = ConsistentHashing::Ring.new(nil, 163)
+    x.report("Insertions:") {for i in 1..70; ring << ip(i); end}
     x.report("Look ups:  ") do
-      for i in 1..100_000
-        ring.point_for(rand_client_id)
-      end
+      emails.each {|email|
+        node = ring.node_for(email)
+        bucket_count = bucket_counts[node]
+        bucket_counts[node] = bucket_count.nil? == true ? 1 : bucket_count + 1 
+      }
     end
   end
+
+  puts "\nRing Distribution:"
+  puts "Node \t\t\t Values"
+  keys = bucket_counts.keys.sort
+  keys.each {|k|
+    puts "#{k} \t\t #{bucket_counts[k]}"
+  }
 end
 
 benchmark_insertions_lookups
