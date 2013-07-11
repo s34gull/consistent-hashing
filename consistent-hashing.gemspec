@@ -24,10 +24,13 @@ Gem::Specification.new do |s|
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<avl_tree>, [">= 1.1.3"])
+      s.add_runtime_dependency(%q<murmurhash3>, [">= 0.1.3"])
     else
       s.add_dependency(%q<avl_tree>, [">= 1.1.3"])
+      s.add_dependency(%q<murmurhash3>, [">= 0.1.3"])
     end
   else
     s.add_dependency(%q<avl_tree>, [">= 1.1.3"])
+    s.add_dependency(%q<murmurhash3>, [">= 0.1.3"])
   end
 end
