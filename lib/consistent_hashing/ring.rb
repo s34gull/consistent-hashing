@@ -1,5 +1,6 @@
-require 'digest/md5'
 require 'set'
+
+require 'murmurhash3'
 
 module ConsistentHashing
 
@@ -7,10 +8,18 @@ module ConsistentHashing
   #
   class Ring
 
+    @@seed = 1500450271
+
     # Public: returns a new ring object
-    def initialize(nodes = [], replicas = 3)
+    # 160 is the default in libmemcached; we chose next larger prime 
+    # shows good performance and reasonable distribution of keys with murmur3
+    def initialize(nodes=[], replicas=163)
+      nodes ||= []
+      replicas ||= 163
+
       @replicas = replicas
       @ring = AVLTree.new
+      @seed = @@seed
 
       nodes.each { |node| add(node) }
     end
@@ -84,11 +93,23 @@ module ConsistentHashing
     protected
 
     # Internal: hashes the key
-    #
-    # Returns: a String
+    #    We use Murmurhash3 to obtain better key distribution over small
+    #    _n_ (e.g. number of servers to shard between) in less time than MD5.
+    #    We get better distribution when indexing if we str_hash the add
+    #    index to that Integer value, and int64_hash the results. This
+    #    is helpful when initializing a ring where the index is the replica
+    #    count. When no index is present (i.e. when we are hashing a value
+    #    to find where in the ring it should live), just use the str_hash of 
+    #    the key.
+    # Returns: a 32 bit Integer
     def hash_key(key, index = nil)
-      key = "#{key}:#{index}" if index
-      Digest::MD5.hexdigest(key.to_s)[0..16].hex
+      if index
+        MurmurHash3::V32.int64_hash(
+          MurmurHash3::V32.str_hash(key.to_s, @seed) + index.to_i
+        )
+      else
+        MurmurHash3::V32.str_hash(key.to_s, @seed)
+      end
     end
   end
 end
